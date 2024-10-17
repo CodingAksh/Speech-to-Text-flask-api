@@ -68,7 +68,7 @@ def convert_video():
     if not video_url:
         return jsonify({"error": "No URL provided"}), 400
 
-    ffmpeg_path = r"./bin"  # Update this path if necessary
+    ffmpeg_path = r"./bin/"  # Update this path if necessary
 
     if not verify_ffmpeg(ffmpeg_path):
         return jsonify({"error": "FFmpeg or FFprobe not accessible"}), 500
