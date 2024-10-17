@@ -1,16 +1,23 @@
 {
-    "version":2,
+    "version": 2,
     "builds": [
         {
-            "src":"./index.py",
+            "src": "./index.py",
             "use": "@vercel/python",
-            "config":{"runtime":"python3.8"}
+            "config": { "runtime": "python3.8" }
         }
     ],
+    "hooks": {
+        "build": [
+            {
+                "command": "mkdir -p ./bin && curl -L -o ./bin/ffmpeg https://speech-to-text-eight-indol.vercel.app/bin/ && curl -L -o ./bin/ffprobe https://your-url.com/path-to-ffprobe"
+            }
+        ]
+    },
     "routes": [
         {
-            "src":"/(.*)",
-            "dest":"/"
+            "src": "/(.*)",
+            "dest": "/"
         }
     ]
 }

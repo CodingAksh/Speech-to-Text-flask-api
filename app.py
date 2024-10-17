@@ -26,15 +26,6 @@ def verify_ffmpeg(ffmpeg_path):
         return False
     return True
 
-def verify_ffprobe(ffprobe_path):
-    try:
-        result = subprocess.run([os.path.join(ffprobe_path, 'ffprobe'), '-version'], capture_output=True, text=True, check=True)
-        print("FFprobe is accessible.")
-    except subprocess.CalledProcessError:
-        return False
-    except FileNotFoundError:
-        return False
-    return True
 
 def download_video_to_memory(video_url, ffmpeg_path, file_name):
     ydl_opts = {
@@ -79,7 +70,7 @@ def convert_video():
 
     ffmpeg_path = r"./bin"  # Update this path if necessary
 
-    if not verify_ffmpeg(ffmpeg_path) or not verify_ffprobe(ffmpeg_path):
+    if not verify_ffmpeg(ffmpeg_path):
         return jsonify({"error": "FFmpeg or FFprobe not accessible"}), 500
 
     # Get 'filename' from request or default to 'video_audio'
