@@ -8,11 +8,13 @@ import subprocess
 app = Flask(__name__)
 
 # Configure CORS to allow requests from Next.js frontend
-CORS(app, resources={
-    r"/convert": {
-        "origins": ["http://localhost:3000", "https://visigenix.vercel.app"],
-    }
-}, supports_credentials=True)
+# CORS(app, resources={
+#     r"/convert": {
+#         "origins": ["http://localhost:3000", "https://visigenix.vercel.app"],
+#     }
+# }, supports_credentials=True)
+
+CORS(app)
 
 def verify_ffmpeg(ffmpeg_path):
     try:
@@ -75,7 +77,7 @@ def convert_video():
     if not video_url:
         return jsonify({"error": "No URL provided"}), 400
 
-    ffmpeg_path = r"C:\Program Files (x86)\ffmpeg\bin"  # Update this path if necessary
+    ffmpeg_path = r"./bin"  # Update this path if necessary
 
     if not verify_ffmpeg(ffmpeg_path) or not verify_ffprobe(ffmpeg_path):
         return jsonify({"error": "FFmpeg or FFprobe not accessible"}), 500
