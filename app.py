@@ -16,7 +16,6 @@ def download_video_to_memory(video_url):
         'outtmpl': "-",
         'quiet': True,
         'no-cache-dir': True,
-        'cookiefile': "youtube_cookies.txt",
     }
 
     try:
