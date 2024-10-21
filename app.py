@@ -16,6 +16,8 @@ def download_video_to_memory(video_url):
         'cookiefile': "youtube_cookies.txt",
         'outtmpl': '-',
         'noplaylist': True,  # Avoid downloading playlists
+         'no-cache-dir': True,  # Disable caching
+        'cache-dir': False,     # Ensure no cache directory is used
     }
 
     try:
