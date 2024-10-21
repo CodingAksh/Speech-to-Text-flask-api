@@ -27,35 +27,31 @@ def verify_ffmpeg(ffmpeg_path):
     return True
 
 
-def download_video_to_memory(video_url, ffmpeg_path, file_name):
+def download_video_to_memory(video_url, file_name):
     ydl_opts = {
         'format': 'bestaudio/best',
-        'outtmpl': f"{file_name}.%(ext)s",
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': '192',
-        }],
-        'ffmpeg_location': ffmpeg_path,
+        'outtmpl': f"{file_name}.%(ext)s",  # Save with the original audio extension (m4a, webm, etc.)
         'quiet': True,
     }
 
     try:
         with YoutubeDL(ydl_opts) as ydl:
-            ydl.download([video_url])
-        mp3_path = f"{file_name}.mp3"
+            info_dict = ydl.extract_info(video_url, download=True)
+            ext = info_dict.get('ext', 'm4a')  # Extract the audio format (like m4a, webm)
+            audio_path = f"{file_name}.{ext}"
 
-        # Read the MP3 file into a BytesIO object
-        with open(mp3_path, 'rb') as f:
+        # Read the downloaded audio file into a BytesIO object
+        with open(audio_path, 'rb') as f:
             audio_data = BytesIO(f.read())
 
-        # Remove the MP3 file from the server after reading
-        os.remove(mp3_path)
+        # Remove the audio file after reading
+        os.remove(audio_path)
 
-        return audio_data
+        return audio_data, ext
     except Exception as e:
-        print(f"Error downloading video: {e}")
-        return None
+        print(f"Error downloading audio: {e}")
+        return None, None
+
     
 @app.route("/")
 def home():
@@ -68,24 +64,18 @@ def convert_video():
     if not video_url:
         return jsonify({"error": "No URL provided"}), 400
 
-    ffmpeg_path = r"./bin/"  # Update this path if necessary
-
-    if not verify_ffmpeg(ffmpeg_path):
-        return jsonify({"error": "FFmpeg or FFprobe not accessible"}), 500
-
-    # Get 'filename' from request or default to 'video_audio'
     file_name = data.get('filename', 'video_audio')
 
-    # Download and convert the video to mp3
-    audio_stream = download_video_to_memory(video_url, ffmpeg_path, file_name)
+    # Download the audio directly without FFmpeg
+    audio_stream, audio_ext = download_video_to_memory(video_url, file_name)
 
     if audio_stream:
         audio_stream.seek(0)
         return send_file(
             audio_stream,
             as_attachment=True,
-            download_name=f"{file_name}.mp3",  # Use 'attachment_filename' if Flask < 2.0
-            mimetype='audio/mpeg'
+            download_name=f"{file_name}.{audio_ext}",
+            mimetype=f'audio/{audio_ext}'
         )
     else:
         return jsonify({"error": "Audio download failed"}), 500
