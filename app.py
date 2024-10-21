@@ -32,6 +32,7 @@ def download_video_to_memory(video_url, file_name):
         'format': 'bestaudio/best',
         'outtmpl': f"{file_name}.%(ext)s",  # Save with the original audio extension (m4a, webm, etc.)
         'quiet': True,
+        'cookiefile': "youtube_cookies.txt"
     }
 
     try:
