@@ -2,7 +2,8 @@ from flask import Flask, request, send_file, jsonify, render_template
 from flask_cors import CORS
 from yt_dlp import YoutubeDL
 from io import BytesIO
-import subprocess
+import tempfile
+import os
 
 app = Flask(__name__)
 
@@ -12,42 +13,33 @@ CORS(app)
 def download_video_to_memory(video_url):
     ydl_opts = {
         'format': 'bestaudio/best',
+        'outtmpl': "-",
         'quiet': True,
+        'no-cache-dir': True,
         'cookiefile': "youtube_cookies.txt",
-        'outtmpl': '-',
-        'noplaylist': True,  # Avoid downloading playlists
-         'no-cache-dir': True,  # Disable caching
-        'cache-dir': False,     # Ensure no cache directory is used
     }
 
     try:
-        with YoutubeDL(ydl_opts) as ydl:
-            # Download audio data directly into memory
-            audio_data = BytesIO()
-            ydl.download([video_url])
-            audio_info = ydl.extract_info(video_url, download=False)  # Get info without downloading
-            audio_url = audio_info['url']
-            
-            # Use subprocess to download audio to memory
-            process = subprocess.Popen(
-                ['ffmpeg', '-i', audio_url, '-f', 'mp3', '-'],  # Change format to mp3 if needed
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
-            )
-            stdout, stderr = process.communicate()
-            if process.returncode != 0:
-                print(f"FFmpeg error: {stderr.decode()}")
-                return None, None
-            
-            audio_data.write(stdout)
-            audio_data.seek(0)
+        # Create a temporary file for the audio
+        with tempfile.NamedTemporaryFile(delete=False) as temp_audio_file:
+            temp_audio_path = temp_audio_file.name
+            ydl_opts['outtmpl'] = temp_audio_path + '.%(ext)s'
 
-            ext = 'mp3'  # Change to the desired output format
-            return audio_data, ext
+            with YoutubeDL(ydl_opts) as ydl:
+                info_dict = ydl.extract_info(video_url, download=True)
+                ext = info_dict.get('ext', 'm4a')
 
+        # Read the downloaded audio file into a BytesIO object
+        with open(temp_audio_path + '.' + ext, 'rb') as f:
+            audio_data = BytesIO(f.read())
+
+        os.remove(temp_audio_path + '.' + ext)  # Clean up temporary file
+
+        return audio_data, ext
     except Exception as e:
         print(f"Error downloading audio: {e}")
         return None, None
+    
 
 @app.route("/")
 def home():
