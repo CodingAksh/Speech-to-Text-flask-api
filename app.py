@@ -1,6 +1,5 @@
 from flask import Flask, request, send_file, jsonify, render_template
 from flask_cors import CORS
-import os
 from yt_dlp import YoutubeDL
 from io import BytesIO
 import subprocess
@@ -8,52 +7,46 @@ import subprocess
 app = Flask(__name__)
 
 # Configure CORS to allow requests from Next.js frontend
-# CORS(app, resources={
-#     r"/convert": {
-#         "origins": ["http://localhost:3000", "https://visigenix.vercel.app"],
-#     }
-# }, supports_credentials=True)
-
 CORS(app)
 
-def verify_ffmpeg(ffmpeg_path):
-    try:
-        result = subprocess.run([os.path.join(ffmpeg_path, 'ffmpeg'), '-version'], capture_output=True, text=True, check=True)
-        print("FFmpeg is accessible.")
-    except subprocess.CalledProcessError:
-        return False
-    except FileNotFoundError:
-        return False
-    return True
-
-
-def download_video_to_memory(video_url, file_name):
+def download_video_to_memory(video_url):
     ydl_opts = {
         'format': 'bestaudio/best',
-        'outtmpl': f"{file_name}.%(ext)s",  # Save with the original audio extension (m4a, webm, etc.)
         'quiet': True,
-        'cookiefile': "youtube_cookies.txt"
+        'cookiefile': "youtube_cookies.txt",
+        'outtmpl': '-',
+        'noplaylist': True,  # Avoid downloading playlists
     }
 
     try:
         with YoutubeDL(ydl_opts) as ydl:
-            info_dict = ydl.extract_info(video_url, download=True)
-            ext = info_dict.get('ext', 'm4a')  # Extract the audio format (like m4a, webm)
-            audio_path = f"{file_name}.{ext}"
+            # Download audio data directly into memory
+            audio_data = BytesIO()
+            ydl.download([video_url])
+            audio_info = ydl.extract_info(video_url, download=False)  # Get info without downloading
+            audio_url = audio_info['url']
+            
+            # Use subprocess to download audio to memory
+            process = subprocess.Popen(
+                ['ffmpeg', '-i', audio_url, '-f', 'mp3', '-'],  # Change format to mp3 if needed
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            stdout, stderr = process.communicate()
+            if process.returncode != 0:
+                print(f"FFmpeg error: {stderr.decode()}")
+                return None, None
+            
+            audio_data.write(stdout)
+            audio_data.seek(0)
 
-        # Read the downloaded audio file into a BytesIO object
-        with open(audio_path, 'rb') as f:
-            audio_data = BytesIO(f.read())
+            ext = 'mp3'  # Change to the desired output format
+            return audio_data, ext
 
-        # Remove the audio file after reading
-        os.remove(audio_path)
-
-        return audio_data, ext
     except Exception as e:
         print(f"Error downloading audio: {e}")
         return None, None
 
-    
 @app.route("/")
 def home():
     return render_template("index.html")
@@ -65,19 +58,19 @@ def convert_video():
     if not video_url:
         return jsonify({"error": "No URL provided"}), 400
 
-    file_name = data.get('filename', 'video_audio')
-
-    # Download the audio directly without FFmpeg
-    audio_stream, audio_ext = download_video_to_memory(video_url, file_name)
+    # Download the audio directly without writing to file
+    audio_stream, audio_ext = download_video_to_memory(video_url)
 
     if audio_stream:
         audio_stream.seek(0)
         return send_file(
             audio_stream,
             as_attachment=True,
-            download_name=f"{file_name}.{audio_ext}",
+            download_name=f"audio.{audio_ext}",
             mimetype=f'audio/{audio_ext}'
         )
     else:
         return jsonify({"error": "Audio download failed"}), 500
 
+if __name__ == "__main__":
+    app.run(debug=True)
